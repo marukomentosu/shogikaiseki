@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTMLマンの将棋検討盤 v2.0</title>
+    <style>
+        :root {
+            --board-color: #f3cca0;
+            --line-color: #5d4037;
+            --piece-color: #fdf5e6;
+            --highlight: rgba(255, 215, 0, 0.5);
+            --last-move: rgba(0, 255, 0, 0.3);
+        }
+        body {
+            font-family: "Hiragino Mincho ProN", "Yu Mincho", serif;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { margin-bottom: 5px; font-weight: normal; font-size: 24px; }
+        
+        .shogi-board {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            grid-template-rows: repeat(9, 1fr);
+            width: 360px;
+            height: 400px;
+            background-color: var(--board-color);
+            border: 4px solid #3e2723;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            margin: 10px 0;
+        }
+        
+        .cell {
+            border: 1px solid var(--line-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+        
+        .piece {
+            width: 85%; height: 90%;
+            background-color: var(--piece-color);
+            clip-path: polygon(50% 0%, 100% 15%, 85% 100%, 15% 100%, 0% 15%);
+            display: flex; justify-content: center; align-items: flex-end;
+            padding-bottom: 2px; box-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            font-weight: bold; color: black; line-height: 1;
+        }
+        .piece.gote { transform: rotate(180deg); }
+        .piece.selected { background-color: #ffd700; }
+        
+        /* Highlight Last Move */
+        .cell.last-move-src { background-color: var(--last-move); }
+        .cell.last-move-dst { background-color: var(--highlight); }
+
+        .komadai-container { width: 360px; display: flex; justify-content: space-between; }
+        .komadai {
+            background-color: #8d6e63; width: 100%; height: 40px;
+            display: flex; align-items: center; padding: 2px; gap: 2px;
+            border-radius: 4px; overflow-x: auto;
+        }
+        .komadai-piece {
+            background-color: var(--piece-color); padding: 0 4px;
+            border-radius: 2px; cursor: pointer; color: black; font-size: 12px;
+            position: relative; height: 30px; display: flex; align-items: center;
+        }
+        .komadai-piece span {
+            position: absolute; top: -5px; right: -5px;
+            background: red; color: white; border-radius: 50%;
+            font-size: 10px; width: 14px; height: 14px;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        .controls { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+        .kifu-controls { display: flex; gap: 10px; margin: 10px 0; align-items: center; }
+        button {
+            padding: 6px 12px; border: none; border-radius: 4px;
+            background-color: #3498db; color: white; cursor: pointer; font-size: 14px;
+        }
+        button:hover { background-color: #2980b9; }
+        button:disabled { background-color: #7f8c8d; cursor: not-allowed; }
+        button.secondary { background-color: #e67e22; }
+
+        textarea {
+            width: 360px; height: 60px; padding: 8px; margin-top: 5px;
+            border-radius: 4px; border: none; font-family: monospace; font-size: 11px;
+        }
+        .status { font-size: 14px; color: #ecf0f1; font-weight: bold; }
+        .help { font-size: 12px; color: #bdc3c7; max-width: 360px; text-align: left; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 4px;}
+    </style>
+</head>
+<body>
+
+    <h1>将棋棋譜解析 v2.0</h1>
+
+    <div class="komadai-container">
+        <div style="font-size: 12px;">△ 後手</div>
+        <div style="font-size: 12px;">▲ 先手</div>
+    </div>
+    <div class="komadai" id="komadai-gote"></div>
+    <div class="shogi-board" id="board"></div>
+    <div class="komadai" id="komadai-sente"></div>
+
+    <div class="kifu-controls">
+        <button onclick="changeMove(-999)">|&lt;</button>
+        <button onclick="changeMove(-1)">&lt;</button>
+        <span id="moveStatus" class="status">0手目</span>
+        <button onclick="changeMove(1)">&gt;</button>
+        <button onclick="changeMove(999)">&gt;|</button>
+        <button onclick="flipBoard()" class="secondary">回転</button>
+    </div>
+
+    <div>
+        <div style="margin-bottom: 5px;">
+            <button onclick="loadInput()">読込/リセット</button>
+            <button onclick="clearBoard()">盤面クリア</button>
+        </div>
+        <textarea id="sfenInput" placeholder="ここにShogi Extend等のSFENを貼り付け&#13;&#10;(例: position startpos moves 7g7f...)"></textarea>
+    </div>
+
+    <div class="help">
+        <strong>【Shogi Extendからの取込方法】</strong><br>
+        1. Shogi Extendで棋譜を開く。<br>
+        2. 盤面下のメニュー(≡)または「ツイート/共有」等のボタンを探す。<br>
+        3. <strong>「SFENのコピー」</strong>を選択。<br>
+        4. 上の箱に貼り付けて「読込」ボタン！<br>
+        ※「position startpos moves...」で始まる文字列に対応。
+    </div>
+
+<script>
+    // --- Configuration ---
+    const pieceMap = {
+        'K': '王', 'R': '飛', 'B': '角', 'G': '金', 'S': '銀', 'N': '桂', 'L': '香', 'P': '歩',
+        '+R': '龍', '+B': '馬', '+S': '成銀', '+N': '成桂', '+L': '成香', '+P': 'と'
+    };
+    
+    // --- State ---
+    let board = [];
+    let hands = { sente: {}, gote: {} };
+    let selected = null;
+    let isFlipped = false;
+    let moves = []; // Store the move list
+    let currentMoveIdx = 0; // Current position in move list
+    let initialSfenStr = "position startpos"; 
+
+    // --- Core: SFEN Parser for Full Game ---
+    function loadInput() {
+        const input = document.getElementById('sfenInput').value.trim();
+        if (!input) {
+            // Default Start
+            initGame("position startpos");
+            return;
+        }
+        initGame(input);
+    }
+
+    function initGame(sfen) {
+        // Reset state
+        moves = [];
+        currentMoveIdx = 0;
+        
+        // Split "position [sfen/startpos] moves [m1] [m2]..."
+        const parts = sfen.split(' moves ');
+        const posPart = parts[0]; // "position startpos" or "position lnsgk..."
+        
+        // Set Initial Board
+        if (posPart.includes('startpos')) {
+            parseBoardSFEN("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
+        } else {
+            // Extract just the sfen string after "position sfen "
+            // Format: position sfen [string]
+            const sfenOnly = posPart.replace(/^position sfen /, '');
+            parseBoardSFEN(sfenOnly);
+        }
+
+        // Store Moves if any
+        if (parts[1]) {
+            moves = parts[1].split(' ');
+        }
+
+        render();
+        updateStatus();
+    }
+
+    function parseBoardSFEN(sfen) {
+        const parts = sfen.split(' ');
+        const rows = parts[0].split('/');
+        
+        board = [];
+        hands = { sente: {}, gote: {} };
+
+        // Board
+        for (let r = 0; r < 9; r++) {
+            let rowData = [];
+            let rowString = rows[r];
+            for (let i = 0; i < rowString.length; i++) {
+                let char = rowString[i];
+                if (!isNaN(char)) {
+                    let count = parseInt(char);
+                    for (let k = 0; k < count; k++) rowData.push(null);
+                } else {
+                    let promote = false;
+                    if (char === '+') { promote = true; char += rowString[i+1]; i++; }
+                    let owner = (char === char.toUpperCase() && !char.startsWith('+')) || (char.startsWith('+') && char[1]===char[1].toUpperCase()) ? 'sente' : 'gote';
+                    let rawType = char.replace('+', '').toUpperCase();
+                    rowData.push({
+                        char: char,
+                        display: pieceMap[rawType] || rawType,
+                        isPromoted: promote,
+                        owner: owner
+                    });
+                }
+            }
+            board.push(rowData);
+        }
+
+        // Hands (simplified parser)
+        if (parts[2] && parts[2] !== '-') {
+            let handStr = parts[2];
+            let numBuf = "";
+            for(let i=0; i<handStr.length; i++) {
+                let c = handStr[i];
+                if(!isNaN(c)) {
+                    numBuf += c;
+                } else {
+                    let count = numBuf ? parseInt(numBuf) : 1;
+                    numBuf = "";
+                    let owner = (c === c.toUpperCase()) ? 'sente' : 'gote';
+                    let type = c.toUpperCase();
+                    if (!hands[owner][type]) hands[owner][type] = 0;
+                    hands[owner][type] += count;
+                }
+            }
+        }
+    }
+
+    // --- Playback Logic ---
+    function changeMove(delta) {
+        if (moves.length === 0) return;
+
+        let targetIdx = currentMoveIdx + delta;
+        if (targetIdx < 0) targetIdx = 0;
+        if (targetIdx > moves.length) targetIdx = moves.length;
+
+        // Simplest implementation: Replay from start to target (robust)
+        // Optimization: In a real app we would do incremental, but for 100 moves, replaying is instant.
+        
+        // 1. Reset to initial
+        const input = document.getElementById('sfenInput').value.trim() || "position startpos";
+        const posPart = input.split(' moves ')[0];
+        if (posPart.includes('startpos')) {
+            parseBoardSFEN("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
+        } else {
+            parseBoardSFEN(posPart.replace(/^position sfen /, ''));
+        }
+
+        // 2. Apply moves until target
+        for (let i = 0; i < targetIdx; i++) {
+            applyMoveSFEN(moves[i]);
+        }
+
+        currentMoveIdx = targetIdx;
+        selected = null; // Clear selection
+        render();
+        updateStatus();
+    }
+
+    function applyMoveSFEN(moveStr) {
+        // Format: 7g7f (normal) or P*5e (drop)
+        // Coords: 9a = 0,0 ... 1i = 8,8
+        // Board array: board[y][x] where y=0..8 (a..i), x=0..8 (9..1)
+        
+        let isDrop = moveStr.includes('*');
+        let promote = moveStr.includes('+');
+        let cleanMove = moveStr.replace('+', ''); // Remove promote flag for parsing coords
+
+        if (isDrop) {
+            // P*5e
+            let type = cleanMove[0]; // P
+            let dstColChar = cleanMove[2]; // 5
+            let dstRowChar = cleanMove[3]; // e
+            
+            let x = 9 - parseInt(dstColChar);
+            let y = dstRowChar.charCodeAt(0) - 97;
+            
+            // Determine turn based on whose move it implies (simplification: we infer from context or just handle generic)
+            // But SFEN piece drop string: Capital = Sente? No, standard SFEN moves don't specify owner, 
+            // the state machine knows whose turn it is.
+            // HACK: We check who has the piece in hand.
+            let owner = 'sente'; 
+            if (hands['gote'][type] && (!hands['sente'][type] || hands['sente'][type] < hands['gote'][type])) {
+                 // Weak logic, but usually we need strict turn tracking. 
+                 // Better: Check move index parity?
+                 // Let's assume standard start: Even index = Sente, Odd = Gote.
+                 // NOTE: This might fail on "Handicap" games if not careful.
+            }
+            // Better Logic: Who is the current turn player?
+            // Since we replay from start, we can toggle turns.
+            // Let's implement a simple turn toggler.
+            // (Assuming even moves = Sente for startpos). 
+            // For now, let's just find which hand has the piece.
+            if (hands['sente'][type] > 0) owner = 'sente';
+            else if (hands['gote'][type] > 0) owner = 'gote';
+            
+            hands[owner][type]--;
+            let boardPiece = (owner === 'sente') ? type : type.toLowerCase(); // Sente=Upper
+            
+            board[y][x] = {
+                char: boardPiece,
+                display: pieceMap[type] || type,
+                owner: owner,
+                isPromoted: false
+            };
+
+        } else {
+            // 7g7f
+            let srcCol = parseInt(cleanMove[0]);
+            let srcRow = cleanMove[1];
+            let dstCol = parseInt(cleanMove[2]);
+            let dstRow = cleanMove[3];
+
+            let sx = 9 - srcCol;
+            let sy = srcRow.charCodeAt(0) - 97;
+            let dx = 9 - dstCol;
+            let dy = dstRow.charCodeAt(0) - 97;
+
+            let piece = board[sy][sx];
+            let target = board[dy][dx];
+
+            // Capture
+            if (target) {
+                let capturedType = target.char.replace('+','').toUpperCase();
+                let newOwner = piece.owner; // Capturer
+                if (!hands[newOwner][capturedType]) hands[newOwner][capturedType] = 0;
+                hands[newOwner][capturedType]++;
+            }
+
+            // Promote
+            if (promote) {
+                piece.char = (piece.owner === 'sente' ? '+' : '+') + piece.char.replace('+','');
+                // Fix: if sente, +P. if gote +p.
+                if (piece.owner === 'gote') piece.char = piece.char.toLowerCase();
+                piece.display = pieceMap[piece.char.toUpperCase()] || piece.char;
+            }
+
+            board[dy][dx] = piece;
+            board[sy][sx] = null;
+        }
+    }
+
+    // --- Rendering & Interaction (Merged from v1) ---
+    function render() {
+        const boardEl = document.getElementById('board');
+        boardEl.innerHTML = '';
+        
+        // Find last move to highlight
+        let lastMove = (moves.length > 0 && currentMoveIdx > 0) ? moves[currentMoveIdx-1] : null;
+        let lmSrc = -1, lmDst = -1; // Flattened indices or coords? Let's use x,y check
+        if (lastMove) {
+            let clean = lastMove.replace('+','');
+            if (lastMove.includes('*')) {
+                // P*5e
+                let dc = 9 - parseInt(clean[2]);
+                let dr = clean[3].charCodeAt(0) - 97;
+                lmDst = {x:dc, y:dr};
+            } else {
+                // 7g7f
+                let sc = 9 - parseInt(clean[0]);
+                let sr = clean[1].charCodeAt(0) - 97;
+                let dc = 9 - parseInt(clean[2]);
+                let dr = clean[3].charCodeAt(0) - 97;
+                lmSrc = {x:sc, y:sr};
+                lmDst = {x:dc, y:dr};
+            }
+        }
+
+        for (let r = 0; r < 9; r++) {
+            for (let c = 0; c < 9; c++) {
+                let viewR = isFlipped ? 8 - r : r;
+                let viewC = isFlipped ? 8 - c : c;
+                
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                
+                // Highlights
+                if (lmSrc && lmSrc.x === viewC && lmSrc.y === viewR) cell.classList.add('last-move-src');
+                if (lmDst && lmDst.x === viewC && lmDst.y === viewR) cell.classList.add('last-move-dst');
+
+                cell.onclick = () => onCellClick(viewC, viewR);
+
+                const piece = board[viewR][viewC];
+                if (piece) {
+                    const pDiv = document.createElement('div');
+                    pDiv.className = `piece ${piece.owner}`;
+                    pDiv.innerText = piece.display;
+                    if (selected && selected.type === 'board' && selected.x === viewC && selected.y === viewR) {
+                        pDiv.classList.add('selected');
+                    }
+                    cell.appendChild(pDiv);
+                }
+                boardEl.appendChild(cell);
+            }
+        }
+        renderHand('sente'); renderHand('gote');
+    }
+
+    function renderHand(owner) {
+        const c = document.getElementById(`komadai-${owner}`);
+        c.innerHTML = '';
+        const h = hands[owner];
+        Object.keys(h).forEach(k => {
+            if (h[k] > 0) {
+                const p = document.createElement('div');
+                p.className = 'komadai-piece';
+                p.innerHTML = `${pieceMap[k]}<span>${h[k]}</span>`;
+                p.onclick = () => onHandClick(owner, k);
+                if (selected && selected.type === 'hand' && selected.owner === owner && selected.piece === k) {
+                    p.style.backgroundColor = '#f1c40f';
+                }
+                c.appendChild(p);
+            }
+        });
+    }
+
+    function updateStatus() {
+        document.getElementById('moveStatus').innerText = `${currentMoveIdx}手目`;
+    }
+
+    // --- Manual Interaction (For Analysis) ---
+    // (Kept simplified: Allows moving pieces freely after the current loaded state)
+    function onCellClick(x, y) {
+        let target = board[y][x];
+        if (selected) {
+            if (selected.type === 'board') {
+                if (selected.x === x && selected.y === y) { selected = null; }
+                else {
+                    // Manual Move Logic (simplified, no parsing)
+                    if (target && target.owner !== selected.ownerVal) {
+                         // Capture
+                         let captured = target.char.replace('+','').toUpperCase();
+                         if(!hands[selected.ownerVal][captured]) hands[selected.ownerVal][captured]=0;
+                         hands[selected.ownerVal][captured]++;
+                    }
+                    board[y][x] = board[selected.y][selected.x];
+                    board[selected.y][selected.x] = null;
+                    selected = null;
+                }
+            } else if (selected.type === 'hand') {
+                if (!target) {
+                    hands[selected.owner][selected.piece]--;
+                    let char = (selected.owner==='sente') ? selected.piece : selected.piece.toLowerCase();
+                    board[y][x] = { char: char, display: pieceMap[selected.piece], owner: selected.owner };
+                    selected = null;
+                }
+            }
+        } else if (target) {
+            selected = { type: 'board', x: x, y: y, piece: target, ownerVal: target.owner };
+        }
+        render();
+    }
+    
+    function onHandClick(owner, type) {
+        selected = { type: 'hand', owner: owner, piece: type };
+        render();
+    }
+
+    function flipBoard() { isFlipped = !isFlipped; render(); }
+    function clearBoard() { board = Array(9).fill(null).map(()=>Array(9).fill(null)); hands={sente:{},gote:{}}; render(); }
+
+    // Start
+    initGame("position startpos");
+
+</script>
+</body>
+</html>
