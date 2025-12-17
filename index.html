@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTMLマンの将棋検討盤 v2.0</title>
+    <title>HTMLマンの将棋検討盤 v3.0</title>
     <style>
         :root {
             --board-color: #f3cca0;
@@ -11,6 +11,9 @@
             --piece-color: #fdf5e6;
             --highlight: rgba(255, 215, 0, 0.5);
             --last-move: rgba(0, 255, 0, 0.3);
+            --btn-blue: #3498db;
+            --btn-green: #2ecc71;
+            --btn-orange: #e67e22;
         }
         body {
             font-family: "Hiragino Mincho ProN", "Yu Mincho", serif;
@@ -25,44 +28,37 @@
         }
         h1 { margin-bottom: 5px; font-weight: normal; font-size: 24px; }
         
+        /* Board Styles */
         .shogi-board {
             display: grid;
             grid-template-columns: repeat(9, 1fr);
             grid-template-rows: repeat(9, 1fr);
-            width: 360px;
-            height: 400px;
+            width: 360px; height: 400px;
             background-color: var(--board-color);
             border: 4px solid #3e2723;
             box-shadow: 0 10px 20px rgba(0,0,0,0.5);
             margin: 10px 0;
-        }
-        
-        .cell {
-            border: 1px solid var(--line-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 24px;
-            cursor: pointer;
-            user-select: none;
             position: relative;
         }
-        
+        .cell {
+            border: 1px solid var(--line-color);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 24px; cursor: pointer; user-select: none; position: relative;
+        }
         .piece {
-            width: 85%; height: 90%;
-            background-color: var(--piece-color);
+            width: 85%; height: 90%; background-color: var(--piece-color);
             clip-path: polygon(50% 0%, 100% 15%, 85% 100%, 15% 100%, 0% 15%);
             display: flex; justify-content: center; align-items: flex-end;
             padding-bottom: 2px; box-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-            font-weight: bold; color: black; line-height: 1;
+            font-weight: bold; color: black; line-height: 1; z-index: 2;
         }
         .piece.gote { transform: rotate(180deg); }
         .piece.selected { background-color: #ffd700; }
         
-        /* Highlight Last Move */
         .cell.last-move-src { background-color: var(--last-move); }
         .cell.last-move-dst { background-color: var(--highlight); }
 
+        /* Komadai */
         .komadai-container { width: 360px; display: flex; justify-content: space-between; }
         .komadai {
             background-color: #8d6e63; width: 100%; height: 40px;
@@ -75,33 +71,59 @@
             position: relative; height: 30px; display: flex; align-items: center;
         }
         .komadai-piece span {
-            position: absolute; top: -5px; right: -5px;
-            background: red; color: white; border-radius: 50%;
-            font-size: 10px; width: 14px; height: 14px;
+            position: absolute; top: -5px; right: -5px; background: red; color: white;
+            border-radius: 50%; font-size: 10px; width: 14px; height: 14px;
             display: flex; justify-content: center; align-items: center;
         }
 
-        .controls { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+        /* Controls */
         .kifu-controls { display: flex; gap: 10px; margin: 10px 0; align-items: center; }
+        .wars-link-area {
+            background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px;
+            margin-bottom: 10px; width: 360px; box-sizing: border-box; text-align: center;
+        }
+
         button {
             padding: 6px 12px; border: none; border-radius: 4px;
-            background-color: #3498db; color: white; cursor: pointer; font-size: 14px;
+            background-color: var(--btn-blue); color: white; cursor: pointer; font-size: 14px;
+            transition: 0.2s;
         }
-        button:hover { background-color: #2980b9; }
-        button:disabled { background-color: #7f8c8d; cursor: not-allowed; }
-        button.secondary { background-color: #e67e22; }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+        button:active { transform: translateY(1px); }
+        button.green { background-color: var(--btn-green); font-weight: bold; }
+        button.secondary { background-color: var(--btn-orange); }
+        button:disabled { background-color: #7f8c8d; cursor: not-allowed; transform: none; }
 
-        textarea {
-            width: 360px; height: 60px; padding: 8px; margin-top: 5px;
-            border-radius: 4px; border: none; font-family: monospace; font-size: 11px;
+        input[type="text"] {
+            padding: 6px; border-radius: 4px; border: none; font-size: 14px; width: 120px;
         }
-        .status { font-size: 14px; color: #ecf0f1; font-weight: bold; }
-        .help { font-size: 12px; color: #bdc3c7; max-width: 360px; text-align: left; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 4px;}
+        textarea {
+            width: 360px; height: 50px; padding: 8px; margin-top: 5px;
+            border-radius: 4px; border: none; font-family: monospace; font-size: 10px;
+            box-sizing: border-box;
+        }
+        .status { font-size: 14px; color: #ecf0f1; font-weight: bold; min-width: 50px; text-align: center; }
+        
+        .toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(46, 204, 113, 0.9); color: white; padding: 10px 20px;
+            border-radius: 20px; display: none; z-index: 100;
+        }
     </style>
 </head>
 <body>
+    <div id="toast" class="toast">読込完了！</div>
 
-    <h1>将棋棋譜解析 v2.0</h1>
+    <h1>将棋棋譜解析 v3.0</h1>
+
+    <div class="wars-link-area">
+        <div style="margin-bottom: 5px; font-size:13px;">将棋ウォーズIDを入力</div>
+        <input type="text" id="warsId" placeholder="User_ID" onchange="saveId()">
+        <button class="secondary" onclick="openWarsSearch()">検索サイトを開く</button>
+        <div style="font-size: 10px; margin-top:5px; color:#ccc;">
+            ※別タブで「棋譜検索」が開きます。SFENをコピーして戻ってきてください。
+        </div>
+    </div>
 
     <div class="komadai-container">
         <div style="font-size: 12px;">△ 後手</div>
@@ -122,364 +144,229 @@
 
     <div>
         <div style="margin-bottom: 5px;">
-            <button onclick="loadInput()">読込/リセット</button>
-            <button onclick="clearBoard()">盤面クリア</button>
+            <button class="green" onclick="pasteAndLoad()">📋 クリップボードから読込</button>
+            <button onclick="clearBoard()">クリア</button>
         </div>
-        <textarea id="sfenInput" placeholder="ここにShogi Extend等のSFENを貼り付け&#13;&#10;(例: position startpos moves 7g7f...)"></textarea>
-    </div>
-
-    <div class="help">
-        <strong>【Shogi Extendからの取込方法】</strong><br>
-        1. Shogi Extendで棋譜を開く。<br>
-        2. 盤面下のメニュー(≡)または「ツイート/共有」等のボタンを探す。<br>
-        3. <strong>「SFENのコピー」</strong>を選択。<br>
-        4. 上の箱に貼り付けて「読込」ボタン！<br>
-        ※「position startpos moves...」で始まる文字列に対応。
+        <textarea id="sfenInput" placeholder="ここにSFENを貼り付け (position startpos moves...)"></textarea>
     </div>
 
 <script>
-    // --- Configuration ---
-    const pieceMap = {
-        'K': '王', 'R': '飛', 'B': '角', 'G': '金', 'S': '銀', 'N': '桂', 'L': '香', 'P': '歩',
-        '+R': '龍', '+B': '馬', '+S': '成銀', '+N': '成桂', '+L': '成香', '+P': 'と'
-    };
-    
-    // --- State ---
-    let board = [];
-    let hands = { sente: {}, gote: {} };
-    let selected = null;
-    let isFlipped = false;
-    let moves = []; // Store the move list
-    let currentMoveIdx = 0; // Current position in move list
-    let initialSfenStr = "position startpos"; 
+    // --- Config & State ---
+    const pieceMap = { 'K': '王', 'R': '飛', 'B': '角', 'G': '金', 'S': '銀', 'N': '桂', 'L': '香', 'P': '歩', '+R': '龍', '+B': '馬', '+S': '成銀', '+N': '成桂', '+L': '成香', '+P': 'と' };
+    let board = [], hands = { sente: {}, gote: {} }, moves = [], currentMoveIdx = 0;
+    let selected = null, isFlipped = false;
 
-    // --- Core: SFEN Parser for Full Game ---
-    function loadInput() {
-        const input = document.getElementById('sfenInput').value.trim();
-        if (!input) {
-            // Default Start
-            initGame("position startpos");
-            return;
-        }
-        initGame(input);
+    // --- Wars Integration ---
+    function saveId() {
+        const id = document.getElementById('warsId').value;
+        localStorage.setItem('shogi_wars_id', id);
     }
 
+    function loadSavedId() {
+        const saved = localStorage.getItem('shogi_wars_id');
+        if (saved) document.getElementById('warsId').value = saved;
+    }
+
+    function openWarsSearch() {
+        const id = document.getElementById('warsId').value;
+        if (!id) { alert("IDを入力してください"); return; }
+        // Kishibato is a reliable third-party search for Wars
+        const url = `https://kishibato.com/wars_kifu/?user_name=${id}`;
+        window.open(url, '_blank');
+    }
+
+    async function pasteAndLoad() {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text.includes("position") || text.includes("moves")) {
+                document.getElementById('sfenInput').value = text;
+                initGame(text);
+                showToast("読込成功！");
+            } else {
+                alert("クリップボードにSFENらしき文字列がありません。\n検索サイトで[SFENコピー]を押しましたか？");
+            }
+        } catch (err) {
+            // Fallback for browsers that block clipboard access
+            const inputVal = document.getElementById('sfenInput').value;
+            if(inputVal) {
+                initGame(inputVal);
+                showToast("テキストエリアから読込");
+            } else {
+                alert("クリップボードへのアクセスが許可されていません。\n手動で貼り付けてください。");
+            }
+        }
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.innerText = msg; t.style.display = 'block';
+        setTimeout(() => t.style.display = 'none', 2000);
+    }
+
+    // --- Core Logic (Optimized from v2) ---
     function initGame(sfen) {
-        // Reset state
-        moves = [];
-        currentMoveIdx = 0;
+        moves = []; currentMoveIdx = 0;
+        const parts = sfen.trim().split(' moves ');
+        let startSfen = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
         
-        // Split "position [sfen/startpos] moves [m1] [m2]..."
-        const parts = sfen.split(' moves ');
-        const posPart = parts[0]; // "position startpos" or "position lnsgk..."
+        if (parts[0].includes('sfen')) startSfen = parts[0].replace(/^position sfen /, '');
+        parseBoardSFEN(startSfen);
         
-        // Set Initial Board
-        if (posPart.includes('startpos')) {
-            parseBoardSFEN("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
-        } else {
-            // Extract just the sfen string after "position sfen "
-            // Format: position sfen [string]
-            const sfenOnly = posPart.replace(/^position sfen /, '');
-            parseBoardSFEN(sfenOnly);
-        }
-
-        // Store Moves if any
-        if (parts[1]) {
-            moves = parts[1].split(' ');
-        }
-
-        render();
-        updateStatus();
+        if (parts[1]) moves = parts[1].split(' ');
+        render(); updateStatus();
     }
 
     function parseBoardSFEN(sfen) {
         const parts = sfen.split(' ');
         const rows = parts[0].split('/');
-        
-        board = [];
-        hands = { sente: {}, gote: {} };
+        board = []; hands = { sente: {}, gote: {} };
 
-        // Board
         for (let r = 0; r < 9; r++) {
-            let rowData = [];
-            let rowString = rows[r];
+            let rowData = [], rowString = rows[r], charIdx = 0;
             for (let i = 0; i < rowString.length; i++) {
                 let char = rowString[i];
                 if (!isNaN(char)) {
-                    let count = parseInt(char);
-                    for (let k = 0; k < count; k++) rowData.push(null);
+                    for (let k = 0; k < parseInt(char); k++) rowData.push(null);
                 } else {
                     let promote = false;
                     if (char === '+') { promote = true; char += rowString[i+1]; i++; }
                     let owner = (char === char.toUpperCase() && !char.startsWith('+')) || (char.startsWith('+') && char[1]===char[1].toUpperCase()) ? 'sente' : 'gote';
-                    let rawType = char.replace('+', '').toUpperCase();
-                    rowData.push({
-                        char: char,
-                        display: pieceMap[rawType] || rawType,
-                        isPromoted: promote,
-                        owner: owner
-                    });
+                    let rawType = char.replace('+','').toUpperCase();
+                    rowData.push({ char: char, display: pieceMap[rawType]||rawType, owner: owner, isPromoted: promote });
                 }
             }
             board.push(rowData);
         }
-
-        // Hands (simplified parser)
+        
+        // Hand parsing (Simplified)
         if (parts[2] && parts[2] !== '-') {
-            let handStr = parts[2];
-            let numBuf = "";
-            for(let i=0; i<handStr.length; i++) {
-                let c = handStr[i];
-                if(!isNaN(c)) {
-                    numBuf += c;
-                } else {
-                    let count = numBuf ? parseInt(numBuf) : 1;
-                    numBuf = "";
-                    let owner = (c === c.toUpperCase()) ? 'sente' : 'gote';
+            let h = parts[2], n = "";
+            for(let c of h) {
+                if(!isNaN(c)) n += c;
+                else {
+                    let count = n ? parseInt(n) : 1; n = "";
+                    let owner = (c===c.toUpperCase()) ? 'sente' : 'gote';
                     let type = c.toUpperCase();
-                    if (!hands[owner][type]) hands[owner][type] = 0;
-                    hands[owner][type] += count;
+                    if (!hands[owner][type]) hands[owner][type]=0;
+                    hands[owner][type]+=count;
                 }
             }
         }
     }
 
-    // --- Playback Logic ---
+    // --- Playback ---
     function changeMove(delta) {
-        if (moves.length === 0) return;
-
-        let targetIdx = currentMoveIdx + delta;
-        if (targetIdx < 0) targetIdx = 0;
-        if (targetIdx > moves.length) targetIdx = moves.length;
-
-        // Simplest implementation: Replay from start to target (robust)
-        // Optimization: In a real app we would do incremental, but for 100 moves, replaying is instant.
+        if (!moves.length) return;
+        let target = Math.max(0, Math.min(moves.length, currentMoveIdx + delta));
         
-        // 1. Reset to initial
-        const input = document.getElementById('sfenInput').value.trim() || "position startpos";
-        const posPart = input.split(' moves ')[0];
-        if (posPart.includes('startpos')) {
-            parseBoardSFEN("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
-        } else {
-            parseBoardSFEN(posPart.replace(/^position sfen /, ''));
-        }
+        // Replay from start (Reliable method)
+        const input = document.getElementById('sfenInput').value;
+        const startPart = input.split(' moves ')[0] || "position startpos";
+        if (startPart.includes('startpos')) parseBoardSFEN("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1");
+        else parseBoardSFEN(startPart.replace(/^position sfen /, ''));
 
-        // 2. Apply moves until target
-        for (let i = 0; i < targetIdx; i++) {
-            applyMoveSFEN(moves[i]);
-        }
-
-        currentMoveIdx = targetIdx;
-        selected = null; // Clear selection
-        render();
-        updateStatus();
+        for(let i=0; i<target; i++) applyMove(moves[i]);
+        currentMoveIdx = target; selected = null; render(); updateStatus();
     }
 
-    function applyMoveSFEN(moveStr) {
-        // Format: 7g7f (normal) or P*5e (drop)
-        // Coords: 9a = 0,0 ... 1i = 8,8
-        // Board array: board[y][x] where y=0..8 (a..i), x=0..8 (9..1)
-        
-        let isDrop = moveStr.includes('*');
-        let promote = moveStr.includes('+');
-        let cleanMove = moveStr.replace('+', ''); // Remove promote flag for parsing coords
-
+    function applyMove(str) {
+        let isDrop = str.includes('*'), promote = str.includes('+'), clean = str.replace('+','');
         if (isDrop) {
-            // P*5e
-            let type = cleanMove[0]; // P
-            let dstColChar = cleanMove[2]; // 5
-            let dstRowChar = cleanMove[3]; // e
-            
-            let x = 9 - parseInt(dstColChar);
-            let y = dstRowChar.charCodeAt(0) - 97;
-            
-            // Determine turn based on whose move it implies (simplification: we infer from context or just handle generic)
-            // But SFEN piece drop string: Capital = Sente? No, standard SFEN moves don't specify owner, 
-            // the state machine knows whose turn it is.
-            // HACK: We check who has the piece in hand.
-            let owner = 'sente'; 
-            if (hands['gote'][type] && (!hands['sente'][type] || hands['sente'][type] < hands['gote'][type])) {
-                 // Weak logic, but usually we need strict turn tracking. 
-                 // Better: Check move index parity?
-                 // Let's assume standard start: Even index = Sente, Odd = Gote.
-                 // NOTE: This might fail on "Handicap" games if not careful.
+            let type = clean[0], x = 9-parseInt(clean[2]), y = clean[3].charCodeAt(0)-97;
+            let owner = (hands.sente[type]>0) ? 'sente' : 'gote'; // Simple inference
+            if(hands[owner][type] > 0) {
+                hands[owner][type]--;
+                board[y][x] = { char: (owner==='sente'?type:type.toLowerCase()), display: pieceMap[type], owner: owner };
             }
-            // Better Logic: Who is the current turn player?
-            // Since we replay from start, we can toggle turns.
-            // Let's implement a simple turn toggler.
-            // (Assuming even moves = Sente for startpos). 
-            // For now, let's just find which hand has the piece.
-            if (hands['sente'][type] > 0) owner = 'sente';
-            else if (hands['gote'][type] > 0) owner = 'gote';
-            
-            hands[owner][type]--;
-            let boardPiece = (owner === 'sente') ? type : type.toLowerCase(); // Sente=Upper
-            
-            board[y][x] = {
-                char: boardPiece,
-                display: pieceMap[type] || type,
-                owner: owner,
-                isPromoted: false
-            };
-
         } else {
-            // 7g7f
-            let srcCol = parseInt(cleanMove[0]);
-            let srcRow = cleanMove[1];
-            let dstCol = parseInt(cleanMove[2]);
-            let dstRow = cleanMove[3];
-
-            let sx = 9 - srcCol;
-            let sy = srcRow.charCodeAt(0) - 97;
-            let dx = 9 - dstCol;
-            let dy = dstRow.charCodeAt(0) - 97;
-
-            let piece = board[sy][sx];
-            let target = board[dy][dx];
-
-            // Capture
-            if (target) {
-                let capturedType = target.char.replace('+','').toUpperCase();
-                let newOwner = piece.owner; // Capturer
-                if (!hands[newOwner][capturedType]) hands[newOwner][capturedType] = 0;
-                hands[newOwner][capturedType]++;
+            let sc=9-parseInt(clean[0]), sr=clean[1].charCodeAt(0)-97;
+            let dc=9-parseInt(clean[2]), dr=clean[3].charCodeAt(0)-97;
+            let p = board[sr][sc], t = board[dr][dc];
+            if(t) {
+                let capt = t.char.replace('+','').toUpperCase();
+                hands[p.owner][capt] = (hands[p.owner][capt]||0) + 1;
             }
-
-            // Promote
-            if (promote) {
-                piece.char = (piece.owner === 'sente' ? '+' : '+') + piece.char.replace('+','');
-                // Fix: if sente, +P. if gote +p.
-                if (piece.owner === 'gote') piece.char = piece.char.toLowerCase();
-                piece.display = pieceMap[piece.char.toUpperCase()] || piece.char;
+            if(promote) {
+                p.char = (p.owner==='sente'?'+':'+') + p.char.replace('+',''); 
+                if(p.owner==='gote') p.char = p.char.toLowerCase();
+                p.display = pieceMap[p.char.replace('+','').toUpperCase()];
             }
-
-            board[dy][dx] = piece;
-            board[sy][sx] = null;
+            board[dr][dc] = p; board[sr][sc] = null;
         }
     }
 
-    // --- Rendering & Interaction (Merged from v1) ---
+    // --- Render & UI ---
     function render() {
-        const boardEl = document.getElementById('board');
-        boardEl.innerHTML = '';
+        const b = document.getElementById('board'); b.innerHTML = '';
+        let lm = (currentMoveIdx>0) ? moves[currentMoveIdx-1].replace('+','') : null;
+        let lSrc={x:-1,y:-1}, lDst={x:-1,y:-1};
         
-        // Find last move to highlight
-        let lastMove = (moves.length > 0 && currentMoveIdx > 0) ? moves[currentMoveIdx-1] : null;
-        let lmSrc = -1, lmDst = -1; // Flattened indices or coords? Let's use x,y check
-        if (lastMove) {
-            let clean = lastMove.replace('+','');
-            if (lastMove.includes('*')) {
-                // P*5e
-                let dc = 9 - parseInt(clean[2]);
-                let dr = clean[3].charCodeAt(0) - 97;
-                lmDst = {x:dc, y:dr};
-            } else {
-                // 7g7f
-                let sc = 9 - parseInt(clean[0]);
-                let sr = clean[1].charCodeAt(0) - 97;
-                let dc = 9 - parseInt(clean[2]);
-                let dr = clean[3].charCodeAt(0) - 97;
-                lmSrc = {x:sc, y:sr};
-                lmDst = {x:dc, y:dr};
+        if(lm) {
+            if(lm.includes('*')) { lDst.x=9-parseInt(lm[2]); lDst.y=lm[3].charCodeAt(0)-97; }
+            else {
+                lSrc.x=9-parseInt(lm[0]); lSrc.y=lm[1].charCodeAt(0)-97;
+                lDst.x=9-parseInt(lm[2]); lDst.y=lm[3].charCodeAt(0)-97;
             }
         }
 
         for (let r = 0; r < 9; r++) {
             for (let c = 0; c < 9; c++) {
-                let viewR = isFlipped ? 8 - r : r;
-                let viewC = isFlipped ? 8 - c : c;
+                let vr = isFlipped ? 8-r : r, vc = isFlipped ? 8-c : c;
+                let cell = document.createElement('div'); cell.className = 'cell';
+                if(vr===lSrc.y && vc===lSrc.x) cell.classList.add('last-move-src');
+                if(vr===lDst.y && vc===lDst.x) cell.classList.add('last-move-dst');
+                cell.onclick = () => onCellClick(vc, vr);
                 
-                const cell = document.createElement('div');
-                cell.className = 'cell';
-                
-                // Highlights
-                if (lmSrc && lmSrc.x === viewC && lmSrc.y === viewR) cell.classList.add('last-move-src');
-                if (lmDst && lmDst.x === viewC && lmDst.y === viewR) cell.classList.add('last-move-dst');
-
-                cell.onclick = () => onCellClick(viewC, viewR);
-
-                const piece = board[viewR][viewC];
-                if (piece) {
-                    const pDiv = document.createElement('div');
-                    pDiv.className = `piece ${piece.owner}`;
-                    pDiv.innerText = piece.display;
-                    if (selected && selected.type === 'board' && selected.x === viewC && selected.y === viewR) {
-                        pDiv.classList.add('selected');
-                    }
-                    cell.appendChild(pDiv);
+                let p = board[vr][vc];
+                if (p) {
+                    let d = document.createElement('div'); d.className = `piece ${p.owner}`; d.innerText = p.display;
+                    if(selected && selected.type==='board' && selected.x===vc && selected.y===vr) d.classList.add('selected');
+                    cell.appendChild(d);
                 }
-                boardEl.appendChild(cell);
+                b.appendChild(cell);
             }
         }
         renderHand('sente'); renderHand('gote');
     }
 
-    function renderHand(owner) {
-        const c = document.getElementById(`komadai-${owner}`);
-        c.innerHTML = '';
-        const h = hands[owner];
-        Object.keys(h).forEach(k => {
-            if (h[k] > 0) {
-                const p = document.createElement('div');
-                p.className = 'komadai-piece';
-                p.innerHTML = `${pieceMap[k]}<span>${h[k]}</span>`;
-                p.onclick = () => onHandClick(owner, k);
-                if (selected && selected.type === 'hand' && selected.owner === owner && selected.piece === k) {
-                    p.style.backgroundColor = '#f1c40f';
-                }
-                c.appendChild(p);
+    function renderHand(o) {
+        const c = document.getElementById(`komadai-${o}`); c.innerHTML = '';
+        Object.keys(hands[o]).forEach(k => {
+            if (hands[o][k] > 0) {
+                let d = document.createElement('div'); d.className = 'komadai-piece';
+                d.innerHTML = `${pieceMap[k]}<span>${hands[o][k]}</span>`;
+                d.onclick = () => { selected = {type:'hand', owner:o, piece:k}; render(); };
+                if(selected && selected.type==='hand' && selected.owner===o && selected.piece===k) d.style.background='#f1c40f';
+                c.appendChild(d);
             }
         });
     }
 
-    function updateStatus() {
-        document.getElementById('moveStatus').innerText = `${currentMoveIdx}手目`;
-    }
-
-    // --- Manual Interaction (For Analysis) ---
-    // (Kept simplified: Allows moving pieces freely after the current loaded state)
     function onCellClick(x, y) {
-        let target = board[y][x];
+        // Simple manual move logic for analysis
+        let t = board[y][x];
         if (selected) {
             if (selected.type === 'board') {
-                if (selected.x === x && selected.y === y) { selected = null; }
-                else {
-                    // Manual Move Logic (simplified, no parsing)
-                    if (target && target.owner !== selected.ownerVal) {
-                         // Capture
-                         let captured = target.char.replace('+','').toUpperCase();
-                         if(!hands[selected.ownerVal][captured]) hands[selected.ownerVal][captured]=0;
-                         hands[selected.ownerVal][captured]++;
-                    }
-                    board[y][x] = board[selected.y][selected.x];
-                    board[selected.y][selected.x] = null;
-                    selected = null;
-                }
-            } else if (selected.type === 'hand') {
-                if (!target) {
-                    hands[selected.owner][selected.piece]--;
-                    let char = (selected.owner==='sente') ? selected.piece : selected.piece.toLowerCase();
-                    board[y][x] = { char: char, display: pieceMap[selected.piece], owner: selected.owner };
-                    selected = null;
-                }
+                if (selected.x!==x || selected.y!==y) {
+                    if (t) hands[selected.ownerVal][t.char.replace('+','').toUpperCase()] = (hands[selected.ownerVal][t.char.replace('+','').toUpperCase()]||0)+1;
+                    board[y][x] = board[selected.y][selected.x]; board[selected.y][selected.x] = null; selected=null;
+                } else selected = null;
+            } else if (selected.type === 'hand' && !t) {
+                hands[selected.owner][selected.piece]--;
+                let char = (selected.owner==='sente') ? selected.piece : selected.piece.toLowerCase();
+                board[y][x] = { char: char, display: pieceMap[selected.piece], owner: selected.owner }; selected=null;
             }
-        } else if (target) {
-            selected = { type: 'board', x: x, y: y, piece: target, ownerVal: target.owner };
-        }
+        } else if (t) selected = { type: 'board', x: x, y: y, piece: t, ownerVal: t.owner };
         render();
     }
     
-    function onHandClick(owner, type) {
-        selected = { type: 'hand', owner: owner, piece: type };
-        render();
-    }
-
+    function updateStatus() { document.getElementById('moveStatus').innerText = `${currentMoveIdx}手目`; }
     function flipBoard() { isFlipped = !isFlipped; render(); }
-    function clearBoard() { board = Array(9).fill(null).map(()=>Array(9).fill(null)); hands={sente:{},gote:{}}; render(); }
-
-    // Start
+    function clearBoard() { board = Array(9).fill(null).map(()=>Array(9).fill(null)); hands={sente:{},gote:{}}; moves=[]; currentMoveIdx=0; render(); updateStatus(); }
+    
+    // Init
+    loadSavedId();
     initGame("position startpos");
-
 </script>
 </body>
 </html>
